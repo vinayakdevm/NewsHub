@@ -1,8 +1,7 @@
 import { NewsResponse, Category } from '../types/news';
 
-const API_KEY = import.meta.env.VITE_NEWS_API_KEY || 'demo';
-const BASE_URL = 'https://newsapi.org/v2';
-const CACHE_DURATION = 15 * 60 * 1000;
+const BASE_URL = '/api/news'; // serverless proxy, no direct API key in frontend
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 interface CachedData {
   data: NewsResponse;
@@ -54,8 +53,7 @@ export async function fetchTopHeadlines(category?: Category): Promise<NewsRespon
     return cached;
   }
 
-  const categoryQuery = category && category !== 'all' ? `&category=${category}` : '';
-  const url = `${BASE_URL}/top-headlines?country=us${categoryQuery}&pageSize=20&apiKey=${API_KEY}`;
+  const url = `${BASE_URL}?type=headlines&category=${categoryParam}`;
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -76,7 +74,7 @@ export async function searchNews(query: string): Promise<NewsResponse> {
     return cached;
   }
 
-  const url = `${BASE_URL}/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`;
+  const url = `${BASE_URL}?type=search&query=${encodeURIComponent(query)}`;
 
   const response = await fetch(url);
   if (!response.ok) {
