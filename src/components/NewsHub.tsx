@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, Moon, Sun, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Search, Moon, Sun, Bookmark, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NewsArticle, Category } from '../types/news';
 import { fetchTopHeadlines, searchNews } from '../services/newsApi';
@@ -10,6 +10,7 @@ import ArticleModal from './ArticleModal';
 import SkeletonCard from './SkeletonCard';
 import SkeletonHero from './SkeletonHero';
 import BookmarksModal from './BookmarksModal';
+import CategoryCarousel from './CategoryCarousel';
 
 const categories: { id: Category; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -35,6 +36,12 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
   const [bookmarks, setBookmarks] = useState<NewsArticle[]>([]);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarkStates, setBookmarkStates] = useState<Record<string, boolean>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date>(new Date());
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
@@ -71,14 +78,52 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
   };
 
   useEffect(() => {
-    loadNews();
+    setPage(1);
+    setArticles([]);
+    setHasMore(true);
+    loadNews(true);
   }, [selectedCategory]);
 
-  const loadNews = async () => {
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      handleAutoRefresh();
+    }, 15 * 60 * 1000);
+
+    return () => clearInterval(refreshInterval);
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !isLoadingMore) {
+          loadMoreArticles();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loading, isLoadingMore, page]);
+
+  const loadNews = async (reset = false) => {
     setLoading(true);
     try {
       const response = await fetchTopHeadlines(selectedCategory);
-      setArticles(response.articles.filter(article => article.title !== '[Removed]'));
+      const validArticles = response.articles.filter(article => article.title !== '[Removed]');
+
+      if (reset) {
+        setArticles(validArticles);
+        setPage(1);
+      } else {
+        setArticles(validArticles);
+      }
+
+      setHasMore(validArticles.length >= 20);
+      setLastRefreshTime(new Date());
     } catch (error) {
       console.error('Error loading news:', error);
     } finally {
@@ -86,17 +131,66 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
     }
   };
 
+  const loadMoreArticles = async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const response = await fetchTopHeadlines(selectedCategory);
+      const validArticles = response.articles.filter(article => article.title !== '[Removed]');
+
+      const newArticles = validArticles.filter(
+        newArticle => !articles.some(existing => existing.url === newArticle.url)
+      );
+
+      if (newArticles.length === 0) {
+        setHasMore(false);
+      } else {
+        setArticles(prev => [...prev, ...newArticles]);
+        setPage(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error loading more articles:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleAutoRefresh = async () => {
+    if (loading || isRefreshing) return;
+
+    setIsRefreshing(true);
+    try {
+      const response = await fetchTopHeadlines(selectedCategory);
+      const validArticles = response.articles.filter(article => article.title !== '[Removed]');
+      setArticles(validArticles);
+      setLastRefreshTime(new Date());
+      setPage(1);
+      setHasMore(validArticles.length >= 20);
+    } catch (error) {
+      console.error('Error refreshing news:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleManualRefresh = () => {
+    loadNews(true);
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
-      loadNews();
+      loadNews(true);
       return;
     }
 
     setLoading(true);
     try {
       const response = await searchNews(searchQuery);
-      setArticles(response.articles.filter(article => article.title !== '[Removed]'));
+      const validArticles = response.articles.filter(article => article.title !== '[Removed]');
+      setArticles(validArticles);
+      setHasMore(false);
     } catch (error) {
       console.error('Error searching news:', error);
     } finally {
@@ -129,6 +223,14 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
 
             <div className="flex items-center gap-2">
               <button
+                onClick={handleManualRefresh}
+                disabled={loading || isRefreshing}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+                title="Refresh news"
+              >
+                <RefreshCw className={`w-5 h-5 text-gray-700 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
                 onClick={() => setShowBookmarks(true)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative"
                 title="View bookmarks"
@@ -155,26 +257,16 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
         </div>
       </header>
 
-      <nav className="sticky top-[73px] z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 py-4 overflow-x-auto scrollbar-hide">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => {
-                  setSelectedCategory(category.id);
-                  setSearchQuery('');
-                }}
-                className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category.id
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900'
-                    : 'bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-              >
-                {category.label}
-              </button>
-            ))}
-          </div>
+      <nav className="sticky top-[73px] z-30 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <CategoryCarousel
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={(category) => {
+              setSelectedCategory(category);
+              setSearchQuery('');
+            }}
+          />
         </div>
       </nav>
 
@@ -206,14 +298,6 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Top Headlines</h2>
-                  <div className="flex gap-2">
-                    <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
-                      <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                    </button>
-                    <button className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
-                      <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                    </button>
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -228,6 +312,16 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
                     />
                   ))}
                 </div>
+
+                {isLoadingMore && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {[...Array(3)].map((_, i) => (
+                      <SkeletonCard key={i} />
+                    ))}
+                  </div>
+                )}
+
+                <div ref={observerTarget} className="h-10" />
               </div>
             )}
 

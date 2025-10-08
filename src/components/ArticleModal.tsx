@@ -36,7 +36,7 @@ export default function ArticleModal({ article, onClose }: ArticleModalProps) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white dark:bg-gray-800 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8"
+          className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8 border border-white/20 dark:border-gray-700/50"
         >
           <div className="relative">
             {article.urlToImage && (

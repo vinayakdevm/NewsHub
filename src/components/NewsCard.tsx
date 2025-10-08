@@ -30,7 +30,7 @@ export default function NewsCard({ article, onClick, index, isBookmarked, onBook
       transition={{ duration: 0.4, delay: index * 0.05 }}
       whileHover={{ y: -4 }}
       onClick={onClick}
-      className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer group"
+      className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group border border-white/20 dark:border-gray-700/50"
     >
       <div className="relative h-48 overflow-hidden bg-gray-200 dark:bg-gray-700">
         {article.urlToImage ? (

@@ -47,10 +47,10 @@ export default function FeaturedArticle({ article, onClick, isBookmarked, onBook
 
       <div className="relative z-20 h-full flex flex-col justify-end p-8 md:p-12 text-white">
         <div className="flex gap-2 mb-4">
-          <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium uppercase">
+          <span className="px-3 py-1 bg-white/30 backdrop-blur-md rounded-full text-xs font-medium uppercase border border-white/20">
             Tech
           </span>
-          <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-medium uppercase">
+          <span className="px-3 py-1 bg-white/30 backdrop-blur-md rounded-full text-xs font-medium uppercase border border-white/20">
             Featured
           </span>
         </div>
