@@ -8,8 +8,8 @@ interface CachedData {
   timestamp: number;
 }
 
-function getCacheKey(type: 'headlines' | 'search', param: string): string {
-  return `news_cache_${type}_${param}`;
+function getCacheKey(type: 'headlines' | 'search', param: string, language?: string): string {
+  return `news_cache_${type}_${param}_${language || 'en'}`;
 }
 
 function getFromCache(key: string): NewsResponse | null {
@@ -43,17 +43,18 @@ function saveToCache(key: string, data: NewsResponse): void {
   }
 }
 
-export async function fetchTopHeadlines(category?: Category): Promise<NewsResponse> {
+export async function fetchTopHeadlines(category?: Category, language?: string): Promise<NewsResponse> {
   const categoryParam = category && category !== 'all' ? category : 'all';
-  const cacheKey = getCacheKey('headlines', categoryParam);
+  const languageParam = language || 'en';
+  const cacheKey = getCacheKey('headlines', categoryParam, languageParam);
 
   const cached = getFromCache(cacheKey);
   if (cached) {
-    console.log('Using cached data for:', categoryParam);
+    console.log('Using cached data for:', categoryParam, languageParam);
     return cached;
   }
 
-  const url = `${BASE_URL}?type=headlines&category=${categoryParam}`;
+  const url = `${BASE_URL}?type=headlines&category=${categoryParam}&language=${languageParam}`;
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -65,16 +66,17 @@ export async function fetchTopHeadlines(category?: Category): Promise<NewsRespon
   return data;
 }
 
-export async function searchNews(query: string): Promise<NewsResponse> {
-  const cacheKey = getCacheKey('search', query.toLowerCase());
+export async function searchNews(query: string, language?: string): Promise<NewsResponse> {
+  const languageParam = language || 'en';
+  const cacheKey = getCacheKey('search', query.toLowerCase(), languageParam);
 
   const cached = getFromCache(cacheKey);
   if (cached) {
-    console.log('Using cached data for search:', query);
+    console.log('Using cached data for search:', query, languageParam);
     return cached;
   }
 
-  const url = `${BASE_URL}?type=search&query=${encodeURIComponent(query)}`;
+  const url = `${BASE_URL}?type=search&query=${encodeURIComponent(query)}&language=${languageParam}`;
 
   const response = await fetch(url);
   if (!response.ok) {
