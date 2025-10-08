@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Moon, Sun, Bookmark, RefreshCw, Globe } from 'lucide-react';
+import { Search, Moon, Sun, Bookmark, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { NewsArticle, Category } from '../types/news';
 import { fetchTopHeadlines, searchNews } from '../services/newsApi';
@@ -27,12 +27,6 @@ interface NewsHubProps {
   setDarkMode: (value: boolean) => void;
 }
 
-const languages = [
-  { code: 'en', label: 'English', flag: '🇬🇧' },
-  { code: 'hi', label: 'हिंदी', flag: '🇮🇳' },
-  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
-];
-
 export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -48,19 +42,10 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
-  const [language, setLanguage] = useState(() => {
-    const saved = localStorage.getItem('language');
-    return saved || 'en';
-  });
-  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
-
-  useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
 
   useEffect(() => {
     loadBookmarks();
@@ -97,7 +82,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
     setArticles([]);
     setHasMore(true);
     loadNews(true);
-  }, [selectedCategory, language]);
+  }, [selectedCategory]);
 
   useEffect(() => {
     const refreshInterval = setInterval(() => {
@@ -105,7 +90,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
     }, 15 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);
-  }, [selectedCategory, language]);
+  }, [selectedCategory]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -127,7 +112,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
   const loadNews = async (reset = false) => {
     setLoading(true);
     try {
-      const response = await fetchTopHeadlines(selectedCategory, language);
+      const response = await fetchTopHeadlines(selectedCategory);
       const validArticles = response.articles.filter(article => article.title !== '[Removed]');
 
       if (reset) {
@@ -151,7 +136,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
 
     setIsLoadingMore(true);
     try {
-      const response = await fetchTopHeadlines(selectedCategory, language);
+      const response = await fetchTopHeadlines(selectedCategory);
       const validArticles = response.articles.filter(article => article.title !== '[Removed]');
 
       const newArticles = validArticles.filter(
@@ -176,7 +161,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
 
     setIsRefreshing(true);
     try {
-      const response = await fetchTopHeadlines(selectedCategory, language);
+      const response = await fetchTopHeadlines(selectedCategory);
       const validArticles = response.articles.filter(article => article.title !== '[Removed]');
       setArticles(validArticles);
       setLastRefreshTime(new Date());
@@ -202,7 +187,7 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
 
     setLoading(true);
     try {
-      const response = await searchNews(searchQuery, language);
+      const response = await searchNews(searchQuery);
       const validArticles = response.articles.filter(article => article.title !== '[Removed]');
       setArticles(validArticles);
       setHasMore(false);
@@ -245,44 +230,6 @@ export default function NewsHub({ darkMode, setDarkMode }: NewsHubProps) {
               >
                 <RefreshCw className={`w-5 h-5 text-gray-700 dark:text-gray-300 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setShowLanguageMenu(!showLanguageMenu)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors flex items-center gap-1"
-                  title="Select language"
-                >
-                  <Globe className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {languages.find(l => l.code === language)?.flag}
-                  </span>
-                </button>
-
-                {showLanguageMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute right-0 mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 min-w-[160px] z-50"
-                  >
-                    {languages.map((lang) => (
-                      <button
-                        key={lang.code}
-                        onClick={() => {
-                          setLanguage(lang.code);
-                          setShowLanguageMenu(false);
-                        }}
-                        className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2 ${
-                          language === lang.code ? 'bg-gray-50 dark:bg-gray-700/50' : ''
-                        }`}
-                      >
-                        <span className="text-lg">{lang.flag}</span>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{lang.label}</span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
-
               <button
                 onClick={() => setShowBookmarks(true)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors relative"

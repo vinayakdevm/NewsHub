@@ -2,19 +2,18 @@
 
 export default async function handler(req: any, res: any) {
   const API_KEY = process.env.VITE_NEWS_API_KEY; // from Vercel Env Variables
-  const { type, query, category, language } = req.query;
-  const lang = language || 'en';
+  const { type, query, category } = req.query;
 
   let url = '';
 
   if (type === 'search') {
     url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(
       query as string
-    )}&language=${lang}&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`;
+    )}&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`;
   } else {
     const categoryQuery =
       category && category !== 'all' ? `&category=${category}` : '';
-    url = `https://newsapi.org/v2/top-headlines?language=${lang}${categoryQuery}&pageSize=20&apiKey=${API_KEY}`;
+    url = `https://newsapi.org/v2/top-headlines?country=us${categoryQuery}&pageSize=20&apiKey=${API_KEY}`;
   }
 
   try {
